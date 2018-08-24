@@ -101,6 +101,10 @@ let
 
       $machine->succeed("cat /mnt/etc/nixos/hardware-configuration.nix >&2");
 
+      my ($exit_code, $output ) = $machine->execute("cat /mnt/etc/nixos/hardware-configuration.nix");
+      print STDOUT "Printing hardware configuration\n";
+      print STDOUT "$output\n";
+
       $machine->copyFileFromHost(
           "${ makeConfig { inherit bootLoader grubVersion grubDevice grubIdentifier grubUseEfi extraConfig; } }",
           "/mnt/etc/nixos/configuration.nix");
@@ -108,14 +112,27 @@ let
       # Perform the installation.
       $machine->succeed("nixos-install < /dev/null >&2");
 
-      # This is handled as part of standard installer test
-      # # Do it again to make sure it's idempotent.
-      # $machine->succeed("nixos-install < /dev/null >&2");
-
+      # Print the grub configuration
       $machine->succeed("cat /mnt/boot/grub/grub.cfg >&2");
+
       $machine->succeed("umount /mnt/boot || true");
       $machine->succeed("umount /mnt");
       $machine->succeed("sync");
+
+      $machine->shutdown;
+
+      # Reboot Machine
+      # Booted configuration name should be Default
+      # We should find **not** a file named /etc/gitconfig
+
+      # Set grub to boot the second configuration
+
+      $machine->shutdown;
+
+      # Reboot Machine
+      # Booted configuration name should be Work
+
+      # We should find a file named /etc/gitconfig
 
       $machine->shutdown;
 
@@ -226,8 +243,11 @@ in {
               "mount LABEL=nixos /mnt",
           );
         '';
+        bootloader = "grub";
+        grubVersion = 2;
 	extraConfig =
 	''
+          boot.loader.grub.configurationName = "Default";
 	  nesting.clone = [
 		  {
 			  boot.loader.grub.configurationName = "Work";
