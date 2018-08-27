@@ -67,6 +67,7 @@ let
   # partitions and filesystems.
   testScriptFun = { bootLoader, createPartitions, grubVersion, grubDevice, grubUseEfi
                   , grubIdentifier, preBootCommands, extraConfig
+                  , testCloneConfig
                   }:
     let
       iface = if grubVersion == 1 then "ide" else "virtio";
@@ -85,6 +86,14 @@ let
     in if !isEfi && !(pkgs.stdenv.isi686 || pkgs.stdenv.isx86_64) then
       throw "Non-EFI boot methods are only supported on i686 / x86_64"
     else ''
+      my $testCloneConfig = 0;
+
+      ${if testCloneConfig == true then
+          ''$testCloneConfig = 1;''
+          else
+          '' ''
+      }
+
       $machine->start;
 
       # Make sure that we get a login prompt etc.
@@ -185,6 +194,43 @@ let
       ${preBootCommands}
       $machine->waitForUnit("network.target");
       $machine->shutdown;
+
+      # Tests for validating clone configuration entries in grub menu
+      if ($testCloneConfig) {
+        # Reboot Machine
+        $machine = createMachine({ ${hdFlags} qemuFlags => "${qemuFlags}", name => "clone-default-config" });
+        ${preBootCommands}
+        $machine->waitForUnit("multi-user.target");
+
+        # Booted configuration name should be Home
+        # This is not the name that shows in the grub menu.
+        # The default configuration is always shown as "Default"
+        $machine->succeed("cat /run/booted-system/configuration-name >&2");
+        $machine->succeed("cat /run/booted-system/configuration-name | grep Home");
+
+        # We should find **not** a file named /etc/gitconfig
+        $machine->fail("test -e /etc/gitconfig");
+
+        # Set grub to boot the second configuration
+        $machine->succeed("grub-reboot 1");
+
+        $machine->shutdown;
+
+        # Reboot Machine
+        $machine = createMachine({ ${hdFlags} qemuFlags => "${qemuFlags}", name => "clone-alternate-config" });
+        ${preBootCommands}
+
+        $machine->waitForUnit("multi-user.target");
+        # Booted configuration name should be Work
+        $machine->succeed("cat /run/booted-system/configuration-name >&2");
+        $machine->succeed("cat /run/booted-system/configuration-name | grep Work");
+
+        # We should find a file named /etc/gitconfig
+        $machine->succeed("test -e /etc/gitconfig");
+
+        $machine->shutdown;
+      }
+
     '';
 
 
@@ -194,6 +240,7 @@ let
     , bootLoader ? "grub" # either "grub" or "systemd-boot"
     , grubVersion ? 2, grubDevice ? "/dev/vda", grubIdentifier ? "uuid", grubUseEfi ? false
     , enableOCR ? false, meta ? {}
+    , testCloneConfig ? false
     }:
     makeTest {
       inherit enableOCR;
@@ -269,7 +316,8 @@ let
 
       testScript = testScriptFun {
         inherit bootLoader createPartitions preBootCommands
-                grubVersion grubDevice grubIdentifier grubUseEfi extraConfig;
+                grubVersion grubDevice grubIdentifier grubUseEfi extraConfig
+                testCloneConfig;
       };
     };
 
@@ -393,6 +441,9 @@ in {
   # The (almost) simplest partitioning scheme: a swap partition and
   # one big filesystem partition.
   simple = makeInstallerTest "simple" simple-test-config;
+
+  # Test cloned configurations with the simple grub configuration
+  simpleclone = makeInstallerTest "simpleclone" (simple-test-config // clone-test-extraconfig);
 
   # Simple GPT/UEFI configuration using systemd-boot with 3 partitions: ESP, swap & root filesystem
   simpleUefiSystemdBoot = makeInstallerTest "simpleUefiSystemdBoot" simpleUefiSystemdBoot-config;
