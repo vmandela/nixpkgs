@@ -343,6 +343,28 @@ let
         bootLoader = "grub";
         grubUseEfi = true;
     };
+
+  clone-test-extraconfig = { extraConfig =
+         ''
+         environment.systemPackages = [ pkgs.grub2 ];
+         boot.loader.grub.configurationName = "Home";
+         nesting.clone = [
+         {
+           boot.loader.grub.configurationName = lib.mkForce "Work";
+
+           environment.etc = {
+             "gitconfig".text = "
+               [core]
+                 gitproxy = none for work.com
+                 ";
+           };
+         }
+         ];
+         '';
+       testCloneConfig = true;
+  };
+
+
 in {
 
   # !!! `parted mkpart' seems to silently create overlapping partitions.
