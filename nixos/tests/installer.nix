@@ -448,6 +448,8 @@ in {
   # Simple GPT/UEFI configuration using systemd-boot with 3 partitions: ESP, swap & root filesystem
   simpleUefiSystemdBoot = makeInstallerTest "simpleUefiSystemdBoot" simpleUefiSystemdBoot-config;
 
+  simpleUefiSystemdBootClone = makeInstallerTest "simpleUefiSystemdBootClone" (simpleUefiSystemdBoot-config // clone-test-extraconfig);
+
   simpleUefiGrub = makeInstallerTest "simpleUefiGrub" simple-uefi-grub-config;
 
   # Same as the previous, but now with a separate /boot partition.
