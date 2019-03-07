@@ -343,20 +343,7 @@ let
         bootLoader = "systemd-boot";
     };
 
-in {
-
-  # !!! `parted mkpart' seems to silently create overlapping partitions.
-
-
-  # The (almost) simplest partitioning scheme: a swap partition and
-  # one big filesystem partition.
-  simple = makeInstallerTest "simple" simple-test-config;
-
-  # Simple GPT/UEFI configuration using systemd-boot with 3 partitions: ESP, swap & root filesystem
-  simpleUefiSystemdBoot = makeInstallerTest "simpleUefiSystemdBoot" simpleUefiSystemdBoot-config;
-
-  simpleUefiGrub = makeInstallerTest "simpleUefiGrub"
-    { createPartitions =
+  simple-uefi-grub-config = { createPartitions =
         ''
           $machine->succeed(
               "flock /dev/vda parted --script /dev/vda -- mklabel gpt"
@@ -377,6 +364,20 @@ in {
         bootLoader = "grub";
         grubUseEfi = true;
     };
+
+in {
+
+  # !!! `parted mkpart' seems to silently create overlapping partitions.
+
+
+  # The (almost) simplest partitioning scheme: a swap partition and
+  # one big filesystem partition.
+  simple = makeInstallerTest "simple" simple-test-config;
+
+  # Simple GPT/UEFI configuration using systemd-boot with 3 partitions: ESP, swap & root filesystem
+  simpleUefiSystemdBoot = makeInstallerTest "simpleUefiSystemdBoot" simpleUefiSystemdBoot-config;
+
+  simpleUefiGrub = makeInstallerTest "simpleUefiGrub" simple-uefi-grub-config;
 
   # Same as the previous, but now with a separate /boot partition.
   separateBoot = makeInstallerTest "separateBoot"
