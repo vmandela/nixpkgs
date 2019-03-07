@@ -450,6 +450,9 @@ in {
 
   simpleUefiGrub = makeInstallerTest "simpleUefiGrub" simple-uefi-grub-config;
 
+  # Test cloned configurations with the uefi grub configuration
+  simpleUefiGrubClone = makeInstallerTest "simpleUefiGrubClone" (simple-uefi-grub-config // clone-test-extraconfig);
+
   # Same as the previous, but now with a separate /boot partition.
   separateBoot = makeInstallerTest "separateBoot"
     { createPartitions =
